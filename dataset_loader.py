@@ -52,6 +52,7 @@ class BRICKDataset(InMemoryDataset):
             contain only non-isomorphic graphs. (default: :obj:`False`)
     """
 
+    
     url = 'https://www.chrsmrrs.com/graphkerneldatasets'
     cleaned_url = ('https://raw.githubusercontent.com/nd7141/'
                    'graph_datasets/master/datasets')
@@ -61,7 +62,7 @@ class BRICKDataset(InMemoryDataset):
                  cleaned=False):
         self.name = name
         self.cleaned = cleaned
-        super(TUDataset, self).__init__(root, transform, pre_transform,
+        super(BRICKDataset, self).__init__(root, transform, pre_transform,
                                         pre_filter)
         self.data, self.slices = torch.load(self.processed_paths[0])
         if self.data.x is not None and not use_node_attr:

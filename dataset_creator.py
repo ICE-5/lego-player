@@ -1,25 +1,32 @@
 import pybullet as p
-import time, io
-import pathlib
 import pybullet_data
 import numpy as np
-from designer import *
-from typing import List
+
+import time
+import pathlib
+import shutil
+import argparse
+
+from typing import List, Optional
 from tqdm import tqdm
+
+from designer import *
 
 
 class DatasetCreator:
     def __init__(
         self,
         designer: Designer,
+        dataset_prefix: str,
         num_episode: int = 100,
         num_frame: int = 20,
         min_num_brick: int = 5,
         max_num_brick: int = 25,
         movement_threshold: float = 0.15,
-        save_dir: pathlib.Path = pathlib.Path(__file__).parent.absolute() / "datasets",
+        save_dir: Optional[pathlib.Path] = None,
     ) -> None:
         self.designer = designer
+        self.dataset_prefix = dataset_prefix
         self.movement_threshold = movement_threshold
         self.num_episode = num_episode
         self.num_frame = num_frame
@@ -29,8 +36,11 @@ class DatasetCreator:
 
     def generate_dataset(self):
 
+        # clear save_dir before creation
+        shutil.rmtree(self.save_dir)
+
         # combined dataset for graph classification (GC)
-        combined_dataset_name = "BRICK_GC"
+        combined_dataset_name = dataset_prefix
         combined_dataset_dir = self.save_dir / combined_dataset_name
         pathlib.Path(combined_dataset_dir).mkdir(parents=True, exist_ok=True)
 
@@ -58,7 +68,7 @@ class DatasetCreator:
             "Number of Brick Progress",
         ):
             # separate dataset for graph classification (GC)
-            dataset_name = "BRICK_GC_" + str(num_brick)
+            dataset_name = self.dataset_prefix + "_" + str(num_brick)
             dataset_dir = self.save_dir / dataset_name
             pathlib.Path(dataset_dir).mkdir(parents=True, exist_ok=True)
 
@@ -121,7 +131,7 @@ class DatasetCreator:
                     graphnode2id[str(graph_id) + "_" + str(i)] = node_id
                     graph_indicator.write(str(graph_id) + "\n")
                     node_attributes.write(
-                        ",".join(str(i) for i in b.bounding.flatten().tolist())  + "\n"
+                        ",".join(str(i) for i in b.bounding.flatten().tolist()) + "\n"
                     )
 
                     # write to combined GC dataset
@@ -143,7 +153,7 @@ class DatasetCreator:
                 p.setGravity(0, 0, -10)
                 for frame in range(self.num_frame):
                     p.stepSimulation()
-                    time.sleep(1./240.)
+                    time.sleep(1.0 / 240.0)
 
                     obs = []
                     for brickID in brickID_list:
@@ -192,11 +202,17 @@ class DatasetCreator:
             graph_indicator.close()
             graph_labels.close()
             node_attributes.close()
+            shutil.make_archive(self.save_dir / dataset_name, "zip", dataset_dir)
+            shutil.rmtree(dataset_dir)
 
         combined_a.close()
         combined_graph_indicator.close()
         combined_graph_labels.close()
         combined_node_attributes.close()
+        shutil.make_archive(
+            self.save_dir / combined_dataset_name, "zip", combined_dataset_dir
+        )
+        shutil.rmtree(combined_dataset_dir)
 
         return physics_node_obs, physics_edge_obs
 
@@ -214,24 +230,101 @@ class DatasetCreator:
 
 
 if __name__ == "__main__":
-    MIN_NUM_BRICK = 10
-    MAX_NUM_BRICK = 15
 
-    NUM_EPISODE = 50
-    NUM_FRAME = 100
-    MOVEMENT_THRESHOLD = 0.1
+    parser = argparse.ArgumentParser("Dataset Creator For Lego Player")
+    parser.add_argument(
+        "--brick-type",
+        type=str,
+        default="plain",
+        help="Type of brick, either 'plain' or 'lego'",
+    )
+    parser.add_argument(
+        "--arena-length",
+        type=float,
+        default=1.0,
+        help="Arena length for designer to contain width of generated design",
+    )
+    parser.add_argument(
+        "--num-episode",
+        type=int,
+        default=50,
+        help="Number of episode per each separate dataset",
+    )
+    parser.add_argument(
+        "--num-frame",
+        type=int,
+        default=100,
+        help="Number of frame to run in simulator per each episode",
+    )
+    parser.add_argument(
+        "--movement-threshold",
+        type=float,
+        default=0.1,
+        help="Threshold for determining structure stability",
+    )
+    parser.add_argument(
+        "--min-num-brick",
+        type=int,
+        default=5,
+        help="Minimum number of bricks for separate dataset generation",
+    )
+    parser.add_argument(
+        "--max-num-brick",
+        type=int,
+        default=20,
+        help="Maximum number of bricks for separate dataset generation",
+    )
+    parser.add_argument(
+        "--brick-extents",
+        nargs="+",
+        type=float,
+        default=[0.4, 0.2, 0.1],
+        help="Brick extents for designer",
+    )
+    parser.add_argument(
+        "--safe-margin",
+        type=float,
+        default=0.1,
+        help="Safe margin for designer in deciding brick placement",
+    )
 
-    ARENA_LENGTH = 1.0
-    BRICK_EXTENTS = [0.4, 0.2, 0.1]
+    args = parser.parse_args()
 
-    desigher = Designer(arena_length=ARENA_LENGTH, brick_extents=BRICK_EXTENTS)
+    if args.brick_type == "plain":
+        safe_margin = args.safe_margin
+        is_modular = False
+        mod_unit = None
+        rotate_prob = [0.1, 0.1, 0.5]
+        dataset_prefix = "BRICK_GC_PLAIN"
+        save_dir = pathlib.Path(__file__).parent.absolute() / "datasets" / "PLAIN"
+
+
+    elif args.brick_type == "lego":
+        is_modular = True
+        mod_unit = min(args.brick_extents)
+        rotate_prob = [0.0, 0.0, 0.5]
+        safe_margin = round(args.safe_margin / mod_unit) * mod_unit
+        dataset_prefix = "BRICK_GC_LEGO"
+        save_dir = pathlib.Path(__file__).parent.absolute() / "datasets" / "LEGO"
+
+
+    desigher = Designer(
+        arena_length=args.arena_length,
+        brick_extents=args.brick_extents,
+        safe_margin=safe_margin,
+        is_modular=is_modular,
+        mod_unit=mod_unit,
+        rotate_prob=rotate_prob,
+    )
     dc = DatasetCreator(
         desigher,
-        num_episode=NUM_EPISODE,
-        num_frame=NUM_FRAME,
-        min_num_brick=MIN_NUM_BRICK,
-        max_num_brick=MAX_NUM_BRICK,
-        movement_threshold=MOVEMENT_THRESHOLD,
+        dataset_prefix,
+        num_episode=args.num_episode,
+        num_frame=args.num_frame,
+        min_num_brick=args.min_num_brick,
+        max_num_brick=args.max_num_brick,
+        movement_threshold=args.movement_threshold,
+        save_dir=save_dir,
     )
     dc.generate_dataset()
 
