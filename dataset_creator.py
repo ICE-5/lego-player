@@ -18,8 +18,8 @@ class DatasetCreator:
         self,
         designer: Designer,
         dataset_prefix: str,
-        num_episode: int = 100,
-        num_frame: int = 20,
+        num_episode: int = 300,
+        num_frame: int = 50,
         min_num_brick: int = 5,
         max_num_brick: int = 25,
         movement_threshold: float = 0.15,
@@ -247,7 +247,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--num-episode",
         type=int,
-        default=50,
+        default=500,
         help="Number of episode per each separate dataset",
     )
     parser.add_argument(
@@ -271,7 +271,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--max-num-brick",
         type=int,
-        default=20,
+        default=10,
         help="Maximum number of bricks for separate dataset generation",
     )
     parser.add_argument(
@@ -298,7 +298,6 @@ if __name__ == "__main__":
         dataset_prefix = "BRICK_GC_PLAIN"
         save_dir = pathlib.Path(__file__).parent.absolute() / "datasets" / "PLAIN"
 
-
     elif args.brick_type == "lego":
         is_modular = True
         mod_unit = min(args.brick_extents)
@@ -306,7 +305,6 @@ if __name__ == "__main__":
         safe_margin = round(args.safe_margin / mod_unit) * mod_unit
         dataset_prefix = "BRICK_GC_LEGO"
         save_dir = pathlib.Path(__file__).parent.absolute() / "datasets" / "LEGO"
-
 
     desigher = Designer(
         arena_length=args.arena_length,
