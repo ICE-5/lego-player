@@ -1,6 +1,7 @@
 import os
 import os.path as osp
 import shutil
+import pathlib
 
 import torch
 from torch_geometric.data import InMemoryDataset, download_url, extract_zip
@@ -52,10 +53,12 @@ class BRICKDataset(InMemoryDataset):
             contain only non-isomorphic graphs. (default: :obj:`False`)
     """
 
+
+    # url = 'https://www.chrsmrrs.com/graphkerneldatasets'
+    # cleaned_url = ('https://raw.githubusercontent.com/nd7141/'
+    #                'graph_datasets/master/datasets')
     
-    url = 'https://www.chrsmrrs.com/graphkerneldatasets'
-    cleaned_url = ('https://raw.githubusercontent.com/nd7141/'
-                   'graph_datasets/master/datasets')
+    main_dir = pathlib.Path(__file__).parent().absolute() / "datasets"
 
     def __init__(self, root, name, transform=None, pre_transform=None,
                  pre_filter=None, use_node_attr=False, use_edge_attr=False,
@@ -123,10 +126,12 @@ class BRICKDataset(InMemoryDataset):
         return 'data.pt'
 
     def download(self):
-        url = self.cleaned_url if self.cleaned else self.url
-        folder = osp.join(self.root, self.name)
+        # url = self.cleaned_url if self.cleaned else self.url
+        # folder = osp.join(self.root, self.name)
         # get zip here
-        path = download_url('{}/{}.zip'.format(url, self.name), folder)
+        # path = download_url('{}/{}.zip'.format(url, self.name), folder)
+        folder = osp.join(self.root, "raw")
+        path = osp.join(self.root, self.name+".zip")
         extract_zip(path, folder)
         os.unlink(path)
         shutil.rmtree(self.raw_dir)
