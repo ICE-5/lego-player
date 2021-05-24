@@ -117,7 +117,7 @@ class Designer:
         logging: bool = False,
         logfile: str = None,
         logmode: str = "a",
-    ) -> Optional[Tuple[Brick, Area]]:
+    ) -> Optional[Tuple[Brick, List[Area]]]:
         # try on each level
         for l in range(
             max(self.max_level - level_range, 0), self.max_level + level_range
@@ -167,7 +167,6 @@ class Designer:
                     )
                     break
                 except TypeError:
-                    print("search failed")
                     pass
             self.update_registry(brick, base_brick_idx_list)
 
@@ -218,6 +217,43 @@ class Designer:
             (-1, Area(0.0, 0.0, self.arena_length, self.arena_length)),
         ]
         self.G.clear()
+    
+    def draw(self, save_dir=None) -> None:
+        node_color = []
+        for node in self.G.nodes:
+            degree = self.G.degree(node)
+
+            if degree == 0:
+                color = "#fcb045"
+            elif degree == 1:
+                color = "#fd7435"
+            elif degree == 2:
+                color = "#fd4c2a"
+            elif degree == 3:
+                color = "#fd1d1d"
+            elif degree == 4:
+                color = "#c22b65"
+            else:
+                color = "#833ab4"
+
+            node_color.append(copy.deepcopy(color))
+
+        nx.draw_kamada_kawai(
+            self.G,
+            with_labels=True,
+            node_color=node_color,
+            node_size=200,
+            alpha=0.9,
+            edge_color="#575757",
+            linewidths=None,
+            font_weight="bold",
+            font_size=8,
+        )
+        if save_dir is not None:
+            plt.savefig(save_dir)
+        else:
+            plt.show()
+
 
     def _search_valid_position_level(
         self, level: int, brick: Brick, num_trial: int
@@ -330,14 +366,14 @@ class Designer:
 
 
 if __name__ == "__main__":
-    NUM_BRICK = 10
+    NUM_BRICK = 15
 
     # common brick style
     # d = Designer(
     #     arena_length=1.0,
     #     brick_extents=[0.4, 0.2, 0.1],
     #     safe_margin=0.1,
-    #     is_modular=False,
+    #     is_modular=True,
     #     rotate_prob=[0.1, 0.1, 0.5],
     # )
 
@@ -351,46 +387,16 @@ if __name__ == "__main__":
         rotate_prob=[0.0, 0.0, 0.5],
     )
 
-    d.generate_design(NUM_BRICK)
+    # d.generate_design(NUM_BRICK)
+    # d.generate_design(num_brick=NUM_BRICK, logging=True, logfile="debug/log.csv")
+    # d.draw()
+    
+    # debug and step 3D visualization in Rhino only
+    logging=True
+    logfile = "debug/log.csv"
+    for i in range(NUM_BRICK):
+        logmode = "w" if i==0 else "a"
 
-    # visualize graph
-    node_color = []
-    for node in d.G.nodes:
-        degree = d.G.degree(node)
-
-        if degree == 0:
-            color = "#fcb045"
-        elif degree == 1:
-            color = "#fd7435"
-        elif degree == 2:
-            color = "#fd4c2a"
-        elif degree == 3:
-            color = "#fd1d1d"
-        elif degree == 4:
-            color = "#c22b65"
-        else:
-            color = "#833ab4"
-
-        node_color.append(copy.deepcopy(color))
-
-    nx.draw_planar(
-        d.G,
-        with_labels=True,
-        node_color=node_color,
-        node_size=200,
-        alpha=0.9,
-        edge_color="#575757",
-        linewidths=None,
-        font_weight="bold",
-        font_size=8,
-    )
-    plt.show()
-
-    ## debug and step 3D visualization in Rhino only
-    # logfile = "debug.csv"
-    # for i in range(NUM_BRICK):
-    #     logmode = "w" if i==0 else "a"
-
-    #     keyboard.wait("n")
-    #     d.next(logfile=logfile, logmode=logmode)
+        keyboard.wait("n")
+        d.next(logging=logging, logfile=logfile, logmode=logmode)
 
